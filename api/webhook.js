@@ -1,10 +1,5 @@
 import fs from 'fs';
 import path from 'path';
-import mercadopago from 'mercadopago';
-
-mercadopago.configure({
-  access_token: process.env.MP_TOKEN,
-});
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -14,43 +9,43 @@ export default async function handler(req, res) {
   try {
     const evento = req.body;
 
-    if (
-      evento.type === 'payment' &&
-      evento.data?.id
-    ) {
-      const pagamento = await mercadopago.payment.findById(evento.data.id);
-      const status = pagamento.response.status;
-      const metadata = pagamento.response.metadata;
-      const token = metadata?.token;
+    if (evento.type === 'payment' && evento.data?.id) {
+      const paymentID = evento.data.id;
 
-      if (status === 'approved' && token) {
-        const valorPago = pagamento.response.transaction_amount;
-        const pontosGanhos = valorPago * 2;
+      const response = await fetch(`https://api.mercadopago.com/v1/payments/${paymentID}`, {
+        headers: {
+          Authorization: `Bearer ${process.env.MP_TOKEN}`
+        }
+      });
+
+      const pagamento = await response.json();
+
+      if (pagamento.status === 'approved') {
+        const valorPago = pagamento.transaction_amount;
+        const token = pagamento.metadata?.token;
+
+        if (!token) return res.status(400).send('Token ausente');
 
         const filePath = path.join(process.cwd(), 'public', 'jogadores.json');
+        let jogadores = {};
 
-        let dados = {};
         if (fs.existsSync(filePath)) {
-          dados = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+          jogadores = JSON.parse(fs.readFileSync(filePath, 'utf8'));
         }
 
-        if (!dados[token]) {
-          dados[token] = 0;
-        }
+        const pontosGanho = valorPago * 2;
 
-        dados[token] += pontosGanhos;
+        if (!jogadores[token]) jogadores[token] = 0;
+        jogadores[token] += pontosGanho;
 
-        fs.writeFileSync(filePath, JSON.stringify(dados, null, 2));
+        fs.writeFileSync(filePath, JSON.stringify(jogadores, null, 2));
 
-        return res.status(200).send('Pontos atualizados com sucesso');
-      } else {
-        return res.status(200).send('Pagamento não aprovado ou token inválido');
+        return res.status(200).send('Saldo atualizado com sucesso');
       }
     }
 
     res.status(200).send('Evento ignorado');
   } catch (err) {
-    console.error('Erro no webhook:', err);
     res.status(500).send('Erro interno');
   }
 }
