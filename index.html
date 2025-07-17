@@ -68,5 +68,19 @@
       div.appendChild(btn);
     });
   </script>
+  <script>
+  function gerarID() {
+    const letras = Math.random().toString(36).substring(2, 7);
+    const numeros = Math.floor(Math.random() * 1000000000).toString();
+    return letras + numeros;
+  }
+
+  if (!localStorage.getItem('userID')) {
+    const novoID = gerarID();
+    localStorage.setItem('userID', novoID);
+  }
+
+  const userID = localStorage.getItem('userID');
+  </script>
 </body>
 </html>
