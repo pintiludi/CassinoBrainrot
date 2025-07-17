@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Cassino Pix Compacto</title>
+  <style>
+    body {
+      background: #111;
+      color: #fff;
+      font-family: sans-serif;
+      text-align: center;
+      padding: 20px;
+    }
+    input, button {
+      margin: 10px;
+      padding: 10px;
+      font-size: 16px;
+    }
+    .token-area, .saldo-area {
+      margin: 15px 0;
+      font-size: 18px;
+    }
+    img {
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+  <h1>🎰 Cassino com Pix</h1>
+
+  <div class="token-area">
+    <strong>Seu Token:</strong> <span id="token"></span>
+  </div>
+
+  <div class="saldo-area">
+    <strong>Saldo:</strong> <span id="saldo">0</span> pontos
+    <br>
+    <button onclick="verSaldo()">🔄 Atualizar Saldo</button>
+  </div>
+
+  <div>
+    <label>Digite o valor (R$1 a R$100):</label><br>
+    <input type="number" id="valor" min="1" max="100" /><br>
+    <button onclick="gerarPagamento()">💸 Gerar Pagamento</button>
+  </div>
+
+  <div id="pagamento"></div>
+
+  <script>
+    function gerarToken() {
+      const letras = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+      const numeros = '0123456789';
+      let t = '';
+      for (let i = 0; i < 7; i++) t += letras.charAt(Math.floor(Math.random() * letras.length));
+      for (let i = 0; i < 7; i++) t += numeros.charAt(Math.floor(Math.random() * numeros.length));
+      return t;
+    }
+
+    function getToken() {
+      let token = localStorage.getItem("token");
+      if (!token) {
+        token = gerarToken();
+        localStorage.setItem("token", token);
+      }
+      return token;
+    }
+
+    function gerarPagamento() {
+      const valor = document.getElementById("valor").value;
+      const token = getToken();
+
+      if (valor < 1 || valor > 100) {
+        alert("Valor inválido. Escolha entre R$1 e R$100.");
+        return;
+      }
+
+      fetch(`/api/gerar-pagamento?valor=${valor}&token=${token}`)
+        .then(res => res.json())
+        .then(data => {
+          document.getElementById("pagamento").innerHTML = `
+            <p><strong>Pagamento de R$${valor}</strong></p>
+            <a href="${data.link}" target="_blank">🔗 Pagar Agora</a><br>
+            <img src="${data.qr}" width="200"/>
+          `;
+        });
+    }
+
+    function verSaldo() {
+      const token = getToken();
+      fetch("/jogadores.json")
+        .then(res => res.json())
+        .then(data => {
+          const saldo = data[token] || 0;
+          document.getElementById("saldo").innerText = saldo;
+        })
+        .catch(() => {
+          document.getElementById("saldo").innerText = "0";
+        });
+    }
+
+    // Inicialização
+    document.getElementById("token").innerText = getToken();
+    verSaldo();
+  </script>
+</body>
+</html>
